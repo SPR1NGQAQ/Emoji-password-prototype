@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Choose task order</h1>
+<p class="muted">You can choose which condition to do first.</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post">
+  <label>
+    <input type="radio" name="order" value="A_first" />
+    Start with Condition A (Traditional password) → then Condition B (Emoji password)
+  </label>
+  <label>
+    <input type="radio" name="order" value="B_first" />
+    Start with Condition B (Emoji password) → then Condition A (Traditional password)
+  </label>
+  <button type="submit">Continue</button>
+</form>
+{% endblock %}

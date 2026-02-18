@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Welcome</h1>
+
+<p>Your participant code: <span class="pill">{{ participant_code }}</span></p>
+
+<p class="muted">
+  You chose to do Condition {{ first }} first, then Condition {{ second }}.
+</p>
+
+<ul>
+  <li>Condition {{ first }}: {% if done_first %}✅ done{% else %}⏳ pending{% endif %}</li>
+  <li>Condition {{ second }}: {% if done_second %}✅ done{% else %}⏳ pending{% endif %}</li>
+</ul>
+
+<p>
+  <a class="link" href="{{ url_for('task', cond=next_cond) }}">
+    Start next task (Condition {{ next_cond }})
+  </a>
+</p>
+
+{% endblock %}

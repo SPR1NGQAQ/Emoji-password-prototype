@@ -1,0 +1,19 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local database & data
+emoji.db
+*.db
+data.csv
+
+# System files
+.DS_Store
+Thumbs.db
+.vscode/
+
+*.zip

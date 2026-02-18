@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Short questionnaire</h1>
+<p class="muted">Scale: 1 (strongly disagree) … 7 (strongly agree)</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post">
+  <label>Condition A felt easy to use.</label>
+  <select name="ease_a" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>Condition B felt easy to use.</label>
+  <select name="ease_b" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>Condition A felt secure.</label>
+  <select name="secure_a" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>Condition B felt secure.</label>
+  <select name="secure_b" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>I feel confident I could remember the traditional password tomorrow.</label>
+  <select name="memory_a" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>I feel confident I could remember the emoji password tomorrow.</label>
+  <select name="memory_b" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>The emoji password required more mental effort than the traditional password.</label>
+  <select name="effort_b" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>How did you choose your emoji password?</label>
+  <select name="strategy_b" required>
+    <option value="">Choose</option>
+    <option value="random">Random</option>
+    <option value="meaning">Based on meaning</option>
+    <option value="pattern">Pattern</option>
+    <option value="easy">Easy to remember</option>
+  </select>
+
+
+  <label>Overall preference: 1 = strongly prefer A, 7 = strongly prefer B</label>
+  <select name="prefer" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>I would be willing to use emoji passwords in real life.</label>
+  <select name="willing" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>Any comments? (optional)</label>
+  <textarea name="comment" rows="4" placeholder="What was confusing / enjoyable / annoying?"></textarea>
+
+  <button type="submit">Submit</button>
+</form>
+{% endblock %}

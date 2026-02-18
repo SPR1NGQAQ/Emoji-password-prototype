@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Consent</h1>
+<p>This is a coursework user study prototype. We collect anonymous interaction data (time, errors) and short opinions. Do <b>not</b> use any real password you use elsewhere.</p>
+<ul>
+  <li>No name/email required.</li>
+  <li>Data stored locally for analysis.</li>
+  <li>You can stop at any time.</li>
+</ul>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post">
+  <label>
+    <input type="checkbox" name="agree" value="yes" />
+    I agree to participate.
+  </label>
+  <button type="submit">Continue</button>
+</form>
+{% endblock %}

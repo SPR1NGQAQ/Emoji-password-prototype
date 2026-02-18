@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block head %}
+<script defer src="{{ url_for('static', filename='task.js') }}"></script>
+{% endblock %}
+{% block content %}
+<h1>Condition {{ condition }}</h1>
+
+{% if condition == 'A' %}
+<p><b>Traditional password</b> (text / numbers). Create any password you would realistically use (but NOT a real one you use elsewhere).</p>
+{% else %}
+<p><b>Emoji password</b>. Click the input box to open the emoji menu and click emojis to insert.</p>
+{% endif %}
+
+<div id="stage-create">
+  <h2>1) Create password</h2>
+  <label>Password</label>
+  <input id="create1" type="text" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
+  <button id="btnCreate">Save & Continue</button>
+  <p id="createMsg" class="muted"></p>
+</div>
+
+<div id="stage-confirm" style="display:none;">
+  <h2>2) Confirm password</h2>
+  <label>Re-enter password</label>
+  <input id="confirm1" type="text" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
+  <button id="btnConfirm">Confirm</button>
+  <p id="confirmMsg" class="muted"></p>
+</div>
+
+<div id="stage-login" style="display:none;">
+  <h2>3) Login (up to 3 attempts)</h2>
+  <label>Enter your password to login</label>
+  <input id="login1" type="text" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
+  <button id="btnLogin">Login</button>
+  <p id="loginMsg" class="muted"></p>
+</div>
+
+<div id="stage-done" style="display:none;">
+  <h2>Condition complete</h2>
+  <p><a class="link" href="{{ url_for('start') }}">Return</a></p>
+</div>
+
+{% if condition == 'B' %}
+<hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
+<div id="emojiPalette" style="display:none;">
+  <div class="row" style="justify-content:space-between;">
+    <b>Emoji menu</b>
+    <span class="muted" style="font-size:12px;">Click to insert · Limit: 4 emojis</span>
+  </div>
+
+  <div id="emojiGrid"
+       style="margin-top:10px;display:grid;grid-template-columns:repeat(10, 1fr);gap:8px;">
+  </div>
+
+  <div class="row" style="margin-top:10px;">
+    <button type="button" id="emojiBackspace">⌫ Backspace</button>
+    <button type="button" id="emojiClear">Clear</button>
+    <button type="button" id="emojiHide">Hide</button>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  window.__COND__ = "{{ condition }}";
+</script>
+{% endblock %}
