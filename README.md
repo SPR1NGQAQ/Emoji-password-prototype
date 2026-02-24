@@ -197,13 +197,7 @@ while introducing predictable patterns.
 
 The study focuses on:
 
-- Emoji placement (end vs within password)
+- Emoji placement (start / end / within password)
 - Number of emojis used
 - Emoji selection behaviour
 - Usability vs security trade-offs
-Contact
-----------------------------------------
-
-If you encounter any issue, please contact:
-Peirong Song
-3111282S@student.gla.ac.uk
