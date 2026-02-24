@@ -1,45 +1,60 @@
+/**
+ * task.js (final)
+ * - Drives create -> confirm -> login flow for A/B conditions
+ * - Records timing events via backend API
+ * - Emoji picker for condition B
+ * - Emoji order is provided by backend per participant session (stable within session)
+ */
+
+// ----------------- Helpers -----------------
 async function postJSON(url, body) {
   const res = await fetch(url, {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(body)
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
   return await res.json();
 }
 
-function nowMs() { return performance.now(); }
+function nowMs() {
+  return performance.now();
+}
+
 const $ = (id) => document.getElementById(id);
 
-// ===== Emoji picker (Condition B) =====
-const EMOJI_SET = [
-  "😀","😎","😭","😡","🍕","🍔","🍩","🍎","🚗","✈️",
-  "⚽","🎵","🎉","🔥","🌧️","☀️","🌙","🐶","🐱","🌸"
-];
+// Condition is written by task.html into window.__COND__
+let cond = window.__COND__;
 
-const LIMIT_EMOJI_LENGTH = true;
-const EMOJI_LIMIT = 4;
+// ----------------- Emoji Set (from backend) -----------------
+const EMOJI_SET_ORDERED = Array.isArray(window.__EMOJIS__) ? window.__EMOJIS__ : [];
+
+// Optional: limit emoji length (turn on if you want PIN-like design)
+const LIMIT_EMOJI_LENGTH = false;
+const EMOJI_LIMIT = 6;
 
 let activeEmojiInput = null;
 
+// ----------------- Emoji picker UI helpers -----------------
 function showPalette(show) {
   const pal = $("emojiPalette");
   if (!pal) return;
   pal.style.display = show ? "block" : "none";
 }
 
-function countEmojis(str) {
+function countChars(str) {
   return Array.from(str).length;
 }
 
 function insertAtCursor(input, text) {
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? input.value.length;
+
   const before = input.value.slice(0, start);
   const after = input.value.slice(end);
   const next = before + text + after;
 
   if (LIMIT_EMOJI_LENGTH) {
-    const n = countEmojis(next);
+    const n = countChars(next);
     if (n > EMOJI_LIMIT) return false;
   }
 
@@ -59,49 +74,60 @@ function backspaceEmoji(input) {
 }
 
 function setupEmojiPickerIfNeeded() {
-  if (window.__COND__ !== "B") return;
+  if (cond !== "B") return;
 
   const grid = $("emojiGrid");
   if (!grid) return;
 
+  // render emoji buttons using backend-provided order
   grid.innerHTML = "";
-  for (const e of EMOJI_SET) {
+  for (const e of EMOJI_SET_ORDERED) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = e;
+
     btn.style.padding = "8px 0";
     btn.style.borderRadius = "10px";
     btn.style.border = "1px solid #ddd";
     btn.style.background = "white";
     btn.style.cursor = "pointer";
+
     btn.addEventListener("click", () => {
       if (!activeEmojiInput) return;
       insertAtCursor(activeEmojiInput, e);
     });
+
     grid.appendChild(btn);
   }
 
+  // bind emoji inputs
   const inputs = document.querySelectorAll("input.emoji-input");
-  inputs.forEach(inp => {
-    inp.addEventListener("focus", () => { activeEmojiInput = inp; showPalette(true); });
-    inp.addEventListener("click", () => { activeEmojiInput = inp; showPalette(true); });
+  inputs.forEach((inp) => {
+    inp.addEventListener("focus", () => {
+      activeEmojiInput = inp;
+      showPalette(true);
+    });
+    inp.addEventListener("click", () => {
+      activeEmojiInput = inp;
+      showPalette(true);
+    });
   });
 
   $("emojiBackspace")?.addEventListener("click", () => {
     if (!activeEmojiInput) return;
     backspaceEmoji(activeEmojiInput);
   });
+
   $("emojiClear")?.addEventListener("click", () => {
     if (!activeEmojiInput) return;
     activeEmojiInput.value = "";
     activeEmojiInput.focus();
   });
+
   $("emojiHide")?.addEventListener("click", () => showPalette(false));
 }
 
-// ===== Study task logic =====
-let cond = window.__COND__;
-
+// ----------------- Study flow (create -> confirm -> login) -----------------
 let createEventId = null;
 let confirmEventId = null;
 let loginEventId = null;
@@ -113,7 +139,7 @@ let loginStart = 0;
 let loginAttempts = 0;
 
 async function startEvent(type) {
-  const r = await postJSON("/api/event/start", {condition: cond, event_type: type});
+  const r = await postJSON("/api/event/start", { condition: cond, event_type: type });
   if (!r.ok) throw new Error(r.error || "startEvent failed");
   return r.event_id;
 }
@@ -124,18 +150,19 @@ async function endEvent(eventId, durationMs, success, attempts, note) {
     duration_ms: Math.round(durationMs),
     success: success,
     attempts: attempts,
-    note: note || null
+    note: note || null,
   });
   if (!r.ok) throw new Error(r.error || "endEvent failed");
 }
 
 async function setSecret(secretText) {
-  const r = await postJSON("/api/secret/set", {condition: cond, secret_text: secretText});
+  // backend computes features; we just send raw for matching (not exported)
+  const r = await postJSON("/api/secret/set", { condition: cond, secret_text: secretText });
   if (!r.ok) throw new Error(r.error || "setSecret failed");
 }
 
 async function checkSecret(attemptText) {
-  const r = await postJSON("/api/secret/check", {condition: cond, attempt_text: attemptText});
+  const r = await postJSON("/api/secret/check", { condition: cond, attempt_text: attemptText });
   if (!r.ok) throw new Error(r.error || "checkSecret failed");
   return !!r.match;
 }
@@ -143,17 +170,21 @@ async function checkSecret(attemptText) {
 async function main() {
   setupEmojiPickerIfNeeded();
 
-  // start create timer
+  // -------- Stage 1: Create --------
   createEventId = await startEvent("create");
   createStart = nowMs();
 
   $("btnCreate").addEventListener("click", async () => {
     const v = $("create1").value;
-    if (!v) { $("createMsg").textContent = "Please enter a password."; return; }
+
+    if (!v) {
+      $("createMsg").textContent = "Please enter a password.";
+      return;
+    }
 
     try {
       const dur = nowMs() - createStart;
-      await setSecret(v);                     // UPSERT prevents duplicate crash
+      await setSecret(v);
       await endEvent(createEventId, dur, 1, null, null);
 
       $("stage-create").style.display = "none";
@@ -167,13 +198,19 @@ async function main() {
     }
   });
 
+  // -------- Stage 2: Confirm --------
   $("btnConfirm").addEventListener("click", async () => {
     const v = $("confirm1").value;
-    if (!v) { $("confirmMsg").textContent = "Please re-enter the password."; return; }
+
+    if (!v) {
+      $("confirmMsg").textContent = "Please re-enter the password.";
+      return;
+    }
 
     try {
       const ok = await checkSecret(v);
       const dur = nowMs() - confirmStart;
+
       await endEvent(confirmEventId, dur, ok ? 1 : 0, null, ok ? null : "confirm mismatch");
 
       if (!ok) {
@@ -195,9 +232,14 @@ async function main() {
     }
   });
 
+  // -------- Stage 3: Login --------
   $("btnLogin").addEventListener("click", async () => {
     const v = $("login1").value;
-    if (!v) { $("loginMsg").textContent = "Enter password."; return; }
+
+    if (!v) {
+      $("loginMsg").textContent = "Enter password.";
+      return;
+    }
 
     try {
       loginAttempts += 1;

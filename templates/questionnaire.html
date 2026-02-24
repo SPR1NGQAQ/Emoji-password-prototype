@@ -3,7 +3,9 @@
 <h1>Short questionnaire</h1>
 <p class="muted">Scale: 1 (strongly disagree) … 7 (strongly agree)</p>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form method="post">
+
+<form method="post" id="qForm">
+
   <label>Condition A felt easy to use.</label>
   <select name="ease_a" required>
     <option value="">Choose</option>
@@ -46,15 +48,65 @@
     {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
   </select>
 
-  <label>How did you choose your emoji password?</label>
-  <select name="strategy_b" required>
+  <hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
+
+  <label>Which structure best describes your emoji password?</label>
+  <select name="structure_b" id="structure_b" required>
     <option value="">Choose</option>
-    <option value="random">Random</option>
-    <option value="meaning">Based on meaning</option>
-    <option value="pattern">Pattern</option>
-    <option value="easy">Easy to remember</option>
+    <option value="emoji_only">Pure emojis only</option>
+    <option value="text_emoji">Text + emojis</option>
+    <option value="number_emoji">Numbers + emojis</option>
+    <option value="text_number_emoji">Text + numbers + emojis</option>
   </select>
 
+  <!-- Branch: MIXED (text/numbers + emojis) -->
+  <div id="block_mixed" style="display:none;">
+    <label>Where did you mainly place emojis in your password?</label>
+    <select name="placement_b" id="placement_b_mixed">
+      <option value="">Choose</option>
+      <option value="beginning">At the beginning</option>
+      <option value="middle">In the middle</option>
+      <option value="end">At the end</option>
+      <option value="mixed">Mixed positions</option>
+    </select>
+
+    <label>How did you choose your emoji password?</label>
+    <select name="strategy_b" id="strategy_b_mixed">
+      <option value="">Choose</option>
+      <option value="random">Random</option>
+      <option value="meaning">Based on meaning</option>
+      <option value="pattern">Pattern</option>
+      <option value="easy">Easy to remember</option>
+    </select>
+
+    <label>My emojis were chosen to relate to the meaning of my password.</label>
+    <select name="semantic_b" id="semantic_b_mixed">
+      <option value="">Choose</option>
+      {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+    </select>
+  </div>
+
+  <!-- Branch: EMOJI ONLY -->
+  <div id="block_emoji_only" style="display:none;">
+    <p class="muted">For pure emoji passwords, the next questions focus on how you selected your emojis.</p>
+
+    <label>How did you choose your emoji password?</label>
+    <select name="strategy_b_emoji_only" id="strategy_b_emoji_only">
+      <option value="">Choose</option>
+      <option value="meaning_story">Meaning / story</option>
+      <option value="pattern">Pattern (e.g., repeated / symmetric)</option>
+      <option value="random">Random</option>
+      <option value="easy">Easy to remember</option>
+    </select>
+
+    <label>My emojis were chosen to express a meaning / story (even without text).</label>
+    <select name="semantic_b_emoji_only" id="semantic_b_emoji_only">
+      <option value="">Choose</option>
+      {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+    </select>
+  </div>
+
+  <hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
 
   <label>Overall preference: 1 = strongly prefer A, 7 = strongly prefer B</label>
   <select name="prefer" required>
@@ -73,4 +125,71 @@
 
   <button type="submit">Submit</button>
 </form>
+
+<script>
+  function setRequired(el, required) {
+    if (!el) return;
+    el.required = !!required;
+  }
+
+  function updateBlocks() {
+    const v = document.getElementById("structure_b").value;
+
+    const mixed = document.getElementById("block_mixed");
+    const only  = document.getElementById("block_emoji_only");
+
+    const placementMixed = document.getElementById("placement_b_mixed");
+    const strategyMixed  = document.getElementById("strategy_b_mixed");
+    const semanticMixed  = document.getElementById("semantic_b_mixed");
+
+    const strategyOnly = document.getElementById("strategy_b_emoji_only");
+    const semanticOnly = document.getElementById("semantic_b_emoji_only");
+
+    if (v === "emoji_only") {
+      mixed.style.display = "none";
+      only.style.display = "block";
+
+      // required for emoji-only branch
+      setRequired(strategyOnly, true);
+      setRequired(semanticOnly, true);
+
+      // not required for mixed branch
+      setRequired(placementMixed, false);
+      setRequired(strategyMixed, false);
+      setRequired(semanticMixed, false);
+
+      // also clear mixed values to avoid sending confusing data
+      if (placementMixed) placementMixed.value = "";
+      if (strategyMixed) strategyMixed.value = "";
+      if (semanticMixed) semanticMixed.value = "";
+    } else if (v) {
+      mixed.style.display = "block";
+      only.style.display = "none";
+
+      // required for mixed branch
+      setRequired(placementMixed, true);
+      setRequired(strategyMixed, true);
+      setRequired(semanticMixed, true);
+
+      // not required for emoji-only branch
+      setRequired(strategyOnly, false);
+      setRequired(semanticOnly, false);
+
+      if (strategyOnly) strategyOnly.value = "";
+      if (semanticOnly) semanticOnly.value = "";
+    } else {
+      mixed.style.display = "none";
+      only.style.display = "none";
+
+      setRequired(placementMixed, false);
+      setRequired(strategyMixed, false);
+      setRequired(semanticMixed, false);
+      setRequired(strategyOnly, false);
+      setRequired(semanticOnly, false);
+    }
+  }
+
+  document.getElementById("structure_b").addEventListener("change", updateBlocks);
+  updateBlocks();
+</script>
 {% endblock %}

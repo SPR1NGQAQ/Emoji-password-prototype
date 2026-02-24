@@ -2,26 +2,59 @@ from __future__ import annotations
 
 import os
 import csv
+import json
 import secrets
 import sqlite3
+import random
 from datetime import datetime, timezone
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any, List
 
 from flask import Flask, g, redirect, render_template, request, session, url_for, abort, jsonify
+
+# ---------------------------
+# Basic config
+# ---------------------------
 
 APP_SECRET = os.environ.get("FLASK_SECRET_KEY", "dev-secret-change-me")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "emoji.db")
-CSV_PATH = os.path.join(os.path.dirname(__file__), "data.csv") # CSV export file
+CSV_PATH = os.path.join(os.path.dirname(__file__), "data.csv")
+
+EMOJI_SET_FIXED_80 = [
+    # Faces (20)
+    "😀","😃","😄","😁","😆","😅","😂","🙂","😉","😊",
+    "😇","😍","😘","😜","🤔","😎","🥳","😴","😭","😡",
+
+    # Animals (20)
+    "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯",
+    "🦁","🐸","🐵","🐧","🐦","🐤","🐙","🐬","🐢","🐝",
+
+    # Food (15)
+    "🍎","🍊","🍌","🍉","🍓","🍒","🍕","🍔","🍟","🍩",
+    "🍪","🍰","🍫","🍿","🍣",
+
+    # Objects (15)
+    "🚗","🚲","✈️","🚀","📱","💻","⌚","📷","🎧","🎮",
+    "📚","✏️","🔑","💡","🧸",
+
+    # Symbols / misc (10)
+    "⭐","🔥","🌈","☀️","🌙","⚡","💎","🎵","⚽","🏆"
+]
+
+EMOJI_WHITELIST = set(EMOJI_SET_FIXED_80)
 
 app = Flask(__name__)
 app.secret_key = APP_SECRET
 
-# ---------------- Helpers ----------------
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat() # UTC timestamp in ISO format, e.g. "2024-06-01T12:34:56.789Z"
 
-# Database connection per request, stored in `g`.
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+# ---------------------------
+# DB helpers
+# ---------------------------
+
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
         conn = sqlite3.connect(DB_PATH)
@@ -29,15 +62,19 @@ def get_db() -> sqlite3.Connection:
         g.db = conn
     return g.db
 
-# Close the database connection at the end of request.
+
 @app.teardown_appcontext
 def close_db(_exc):
     db = g.pop("db", None)
     if db is not None:
         db.close()
 
-# Initialize database tables if they don't exist.
+
 def init_db() -> None:
+    """
+    Creates tables if not exist.
+    NOTE: If you changed schema, delete emoji.db and restart.
+    """
     db = get_db()
     db.executescript(
         """
@@ -47,12 +84,26 @@ def init_db() -> None:
             created_at TEXT NOT NULL
         );
 
-        -- Plaintext secret for research prototype ONLY.
+        -- Stores raw password for confirm/login matching (prototype only)
+        -- but exports only derived features (no raw password in CSV).
         CREATE TABLE IF NOT EXISTS secrets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             participant_id INTEGER NOT NULL,
             condition TEXT NOT NULL CHECK(condition IN ('A','B')),
+
             secret_text TEXT NOT NULL,
+
+            -- derived features (exportable)
+            pw_tokens_len INTEGER,
+            emoji_count INTEGER,
+            emoji_single INTEGER,
+            emoji_first INTEGER,
+            emoji_at_end INTEGER,
+            emoji_within INTEGER,
+            emoji_only INTEGER,
+            emojis_used TEXT,          -- comma-separated sequence of emojis used
+            first_emoji_bias INTEGER,  -- 1 if first emoji used equals first emoji shown in menu
+
             created_at TEXT NOT NULL,
             FOREIGN KEY(participant_id) REFERENCES participants(id),
             UNIQUE(participant_id, condition)
@@ -76,31 +127,44 @@ def init_db() -> None:
         CREATE TABLE IF NOT EXISTS questionnaire (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             participant_id INTEGER NOT NULL,
+
             ease_a INTEGER,
             ease_b INTEGER,
             secure_a INTEGER,
             secure_b INTEGER,
+
             memory_a INTEGER,
             memory_b INTEGER,
             effort_b INTEGER,
+
+            structure_b TEXT,
+            placement_b TEXT,
             strategy_b TEXT,
+            semantic_b INTEGER,
+
             prefer INTEGER,
             willing INTEGER,
+
             comment TEXT,
             created_at TEXT NOT NULL,
+
             FOREIGN KEY(participant_id) REFERENCES participants(id),
             UNIQUE(participant_id)
-    );
+        );
         """
     )
     db.commit()
 
-# Initialize database before handling any request.
+
 @app.before_request
 def _init():
     init_db()
 
-# Get current participant ID from session, or None if not set/invalid.
+
+# ---------------------------
+# Participant + order helpers
+# ---------------------------
+
 def current_participant_id() -> Optional[int]:
     code = session.get("participant_code")
     if not code:
@@ -109,7 +173,7 @@ def current_participant_id() -> Optional[int]:
     row = db.execute("SELECT id FROM participants WHERE participant_code=?", (code,)).fetchone()
     return int(row["id"]) if row else None
 
-# Create a new participant with a unique code, store in DB, and return the code.
+
 def create_participant() -> str:
     db = get_db()
     code = secrets.token_urlsafe(6)
@@ -117,7 +181,16 @@ def create_participant() -> str:
     db.commit()
     return code
 
-# Check if participant has completed the given condition (A or B) by looking for a secret.
+
+def get_order_from_session() -> Optional[Tuple[str, str]]:
+    order = session.get("order_choice")
+    if order == "A_first":
+        return ("A", "B")
+    if order == "B_first":
+        return ("B", "A")
+    return None
+
+
 def has_done_condition(pid: int, cond: str) -> bool:
     db = get_db()
     row = db.execute(
@@ -126,24 +199,128 @@ def has_done_condition(pid: int, cond: str) -> bool:
     ).fetchone()
     return row is not None
 
-# Get the order of conditions from session, or None if not set/invalid.
-def get_order_from_session() -> Optional[Tuple[str, str]]:
-    """
-    Returns ('A','B') or ('B','A') if user chose order.
-    """
-    order = session.get("order_choice")
-    if order == "A_first":
-        return ("A", "B")
-    if order == "B_first":
-        return ("B", "A")
-    return None
 
-# Export participant's data to CSV (append one row). Called on /done.
+# ---------------------------
+# Emoji order per participant session (B only)
+# ---------------------------
+
+def get_or_make_emoji_order_for_session() -> List[str]:
+    """
+    All participants share the SAME 80 emoji set.
+    Each participant gets a RANDOM ORDER (to reduce position bias),
+        stable within the session.
+    """
+    key = "emoji_order_B"
+    if key in session:
+        try:
+            arr = session[key]
+            if isinstance(arr, list) and len(arr) == len(EMOJI_SET_FIXED_80):
+                return arr
+        except Exception:
+            pass
+
+    arr = EMOJI_SET_FIXED_80[:]
+    random.shuffle(arr)
+    session[key] = arr
+    return arr
+
+
+# ---------------------------
+# Robust tokenization for multi-codepoint emojis
+# ---------------------------
+
+def tokenize_with_whitelist(text: str, whitelist: set[str]) -> List[str]:
+    """
+    Split string into tokens where any whitelist emoji is treated as ONE token.
+    This handles emojis like '✈️' that are multiple codepoints.
+    """
+    if not text:
+        return []
+
+    # sort by length desc so longest match wins
+    wl = sorted(whitelist, key=len, reverse=True)
+
+    tokens: List[str] = []
+    i = 0
+    while i < len(text):
+        matched = None
+        for e in wl:
+            if text.startswith(e, i):
+                matched = e
+                break
+        if matched is not None:
+            tokens.append(matched)
+            i += len(matched)
+        else:
+            tokens.append(text[i])
+            i += 1
+    return tokens
+
+
+# ---------------------------
+# Feature extraction (no raw export)
+# ---------------------------
+
+def extract_secret_features(secret_text: str, cond: str) -> Dict[str, Any]:
+    tokens = tokenize_with_whitelist(secret_text, EMOJI_WHITELIST)
+    pw_tokens_len = len(tokens)
+    
+    # Analyze emoji usage and positions
+    emoji_positions = [i for i, t in enumerate(tokens) if t in EMOJI_WHITELIST]
+    emoji_count = len(emoji_positions)
+
+    emoji_first = 1 if (emoji_count > 0 and emoji_positions[0] == 0) else 0
+    emoji_only = 1 if (emoji_count > 0 and emoji_count == pw_tokens_len) else 0
+    emoji_single = 1 if emoji_count == 1 else 0
+
+    emoji_at_end = 1 if (emoji_count > 0 and emoji_positions[-1] == pw_tokens_len - 1) else 0
+    emoji_within = 1 if any(pos < pw_tokens_len - 1 for pos in emoji_positions) else 0
+
+    emojis_used_seq = [tokens[i] for i in emoji_positions]
+    emojis_used = ",".join(emojis_used_seq) if emojis_used_seq else ""
+
+    # Bias: If condition B and at least one emoji used, check if first emoji used equals first emoji shown in menu
+    first_emoji_bias = 0
+    if cond == "B" and emoji_count > 0:
+        shown = get_or_make_emoji_order_for_session()
+        first_shown = shown[0] if shown else None
+        first_used = emojis_used_seq[0] if emojis_used_seq else None
+        if first_shown is not None and first_used == first_shown:
+            first_emoji_bias = 1
+
+    return {
+        "pw_tokens_len": pw_tokens_len,
+        "emoji_count": emoji_count,
+        "emoji_single": emoji_single,
+        "emoji_first": emoji_first,
+        "emoji_at_end": emoji_at_end,
+        "emoji_within": emoji_within,
+        "emoji_only": emoji_only,
+        "emojis_used": emojis_used,
+        "first_emoji_bias": first_emoji_bias,
+    }
+
+
+# ---------------------------
+# CSV export (one row per participant)
+# ---------------------------
+
 def export_participant_to_csv(pid: int, participant_code: str) -> None:
     db = get_db()
 
     q = db.execute("SELECT * FROM questionnaire WHERE participant_id=?", (pid,)).fetchone()
     events = db.execute("SELECT * FROM events WHERE participant_id=? ORDER BY id", (pid,)).fetchall()
+
+    secrets_rows = db.execute(
+        """
+        SELECT condition,
+               pw_tokens_len, emoji_count, emoji_single, emoji_at_end, emoji_within, emojis_used, first_emoji_bias, emoji_first, emoji_only
+        FROM secrets
+        WHERE participant_id=?
+        """,
+        (pid,),
+    ).fetchall()
+
     summary = {
         "participant_code": participant_code,
 
@@ -159,19 +336,36 @@ def export_participant_to_csv(pid: int, participant_code: str) -> None:
         "B_login_success": None,
         "B_login_attempts": None,
 
+        # derived structure features (no raw secret)
+        "A_pw_tokens_len": None,
+        "B_pw_tokens_len": None,
+        "B_emoji_count": None,
+        "B_emoji_single": None,
+        "B_emoji_at_end": None,
+        "B_emoji_within": None,
+        "B_emoji_first": None,
+        "B_emoji_only": None,
+        "B_emojis_used": None,
+        "B_first_emoji_bias": None,
+
+        # questionnaire
         "ease_a": None,
         "ease_b": None,
         "secure_a": None,
         "secure_b": None,
-        "prefer": None,
-        "willing": None,
-        "comment": None,
         "memory_a": None,
         "memory_b": None,
         "effort_b": None,
         "strategy_b": None,
+        "semantic_b": None,
+        "prefer": None,
+        "willing": None,
+        "comment": None,
+        "structure_b": None,
+        "placement_b": None,
     }
-    # Fill in event data into summary dict. Keys are prefixed by condition (A_ or B_).
+
+    # events -> last observed values
     for e in events:
         cond = e["condition"]
         etype = e["event_type"]
@@ -185,35 +379,57 @@ def export_participant_to_csv(pid: int, participant_code: str) -> None:
             summary[prefix + "login_time_ms"] = e["duration_ms"]
             summary[prefix + "login_success"] = e["success"]
             summary[prefix + "login_attempts"] = e["attempts"]
-    # Fill in questionnaire data if exists.
+
+    # secrets -> derived features
+    for r in secrets_rows:
+        c = r["condition"]
+        if c == "A":
+            summary["A_pw_tokens_len"] = r["pw_tokens_len"]
+        elif c == "B":
+            summary["B_pw_tokens_len"] = r["pw_tokens_len"]
+            summary["B_emoji_count"] = r["emoji_count"]
+            summary["B_emoji_single"] = r["emoji_single"]
+            summary["B_emoji_at_end"] = r["emoji_at_end"]
+            summary["B_emoji_within"] = r["emoji_within"]
+            summary["B_emojis_used"] = r["emojis_used"]
+            summary["B_first_emoji_bias"] = r["first_emoji_bias"]
+            summary["B_emoji_first"] = r["emoji_first"]
+            summary["B_emoji_only"] = r["emoji_only"]
+
+    # questionnaire
     if q:
         summary["ease_a"] = q["ease_a"]
         summary["ease_b"] = q["ease_b"]
         summary["secure_a"] = q["secure_a"]
         summary["secure_b"] = q["secure_b"]
-        summary["prefer"] = q["prefer"]
-        summary["willing"] = q["willing"]
-        summary["comment"] = q["comment"]
         summary["memory_a"] = q["memory_a"]
         summary["memory_b"] = q["memory_b"]
         summary["effort_b"] = q["effort_b"]
         summary["strategy_b"] = q["strategy_b"]
+        summary["semantic_b"] = q["semantic_b"]
+        summary["prefer"] = q["prefer"]
+        summary["willing"] = q["willing"]
+        summary["comment"] = q["comment"]
+        summary["structure_b"] = q["structure_b"]
+        summary["placement_b"] = q["placement_b"]
 
     file_exists = os.path.isfile(CSV_PATH)
-    with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
+    with open(CSV_PATH, "a", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=list(summary.keys()))
         if not file_exists:
             writer.writeheader()
         writer.writerow(summary)
 
 
-# ---------------- Routes ----------------
+# ---------------------------
+# Pages
+# ---------------------------
 
 @app.route("/")
 def home():
     return render_template("home.html")
 
-# Consent page where participant must agree to proceed. On POST, create participant and redirect to order choice.
+
 @app.route("/consent", methods=["GET", "POST"])
 def consent():
     if request.method == "POST":
@@ -222,10 +438,11 @@ def consent():
         code = create_participant()
         session["participant_code"] = code
         session.pop("order_choice", None)
+        session.pop("emoji_order_B", None)  # reset emoji order for fresh participant session
         return redirect(url_for("choose_order"))
     return render_template("consent.html", error=None)
 
-# Page to choose order of conditions (A first or B first). On POST, save choice in session and redirect to start.
+
 @app.route("/choose-order", methods=["GET", "POST"])
 def choose_order():
     pid = current_participant_id()
@@ -241,7 +458,7 @@ def choose_order():
 
     return render_template("choose_order.html", error=None)
 
-# Start page that shows progress and next steps. Enforces order of tasks and questionnaire.
+
 @app.route("/start")
 def start():
     pid = current_participant_id()
@@ -277,11 +494,12 @@ def start():
         next_cond=next_cond,
     )
 
-# Task page for condition A or B. Enforces order and prevents redoing completed tasks.
+
 @app.route("/task/<cond>", methods=["GET"])
 def task(cond: str):
     if cond not in ("A", "B"):
         abort(404)
+
     pid = current_participant_id()
     if pid is None:
         return redirect(url_for("consent"))
@@ -292,17 +510,19 @@ def task(cond: str):
 
     first, second = order
 
-    # enforce chosen order
     if cond == second and not has_done_condition(pid, first):
         return redirect(url_for("task", cond=first))
 
-    # if already done this cond, go start
     if has_done_condition(pid, cond):
         return redirect(url_for("start"))
 
-    return render_template("task.html", condition=cond)
+    emojis = []
+    if cond == "B":
+        emojis = get_or_make_emoji_order_for_session()
 
-# Questionnaire page after completing both tasks. On POST, save responses and redirect to done.
+    return render_template("task.html", condition=cond, emojis=emojis)
+
+
 @app.route("/questionnaire", methods=["GET", "POST"])
 def questionnaire():
     pid = current_participant_id()
@@ -325,7 +545,7 @@ def questionnaire():
     if request.method == "POST":
         def to_int(name: str) -> Optional[int]:
             v = request.form.get(name)
-            if not v:
+            if v is None or v == "":
                 return None
             try:
                 return int(v)
@@ -340,36 +560,63 @@ def questionnaire():
             "memory_a": to_int("memory_a"),
             "memory_b": to_int("memory_b"),
             "effort_b": to_int("effort_b"),
-            "strategy_b": request.form.get("strategy_b"),
+            "structure_b": (request.form.get("structure_b") or "").strip(),
+            "placement_b": (request.form.get("placement_b") or "").strip(),
+            "strategy_b": (request.form.get("strategy_b") or "").strip(),
+            "semantic_b": to_int("semantic_b"),
             "prefer": to_int("prefer"),
             "willing": to_int("willing"),
             "comment": (request.form.get("comment") or "").strip(),
         }
 
-        required = [
-            "ease_a", "ease_b",
-            "secure_a", "secure_b",
-            "memory_a", "memory_b",
-            "effort_b",
-            "prefer", "willing"
+        # --- branch override for emoji_only ---
+        if payload["structure_b"] == "emoji_only":
+            payload["placement_b"] = ""  # not applicable
+            payload["strategy_b"] = (request.form.get("strategy_b_emoji_only") or "").strip()
+            payload["semantic_b"] = to_int("semantic_b_emoji_only")
+
+        required_scale = [
+            "ease_a","ease_b","secure_a","secure_b",
+            "memory_a","memory_b","effort_b",
+            "prefer","willing",
         ]
-        if any(payload[k] is None or not (1 <= payload[k] <= 7) for k in required):
-            return render_template("questionnaire.html", error="Please answer all scale questions (1–7).")
+        if any(payload[k] is None or not (1 <= payload[k] <= 7) for k in required_scale):
+            return render_template("questionnaire.html", error="Please answer all required scale questions (1–7).")
+
+        # structure_b is required and must be one of the options
+        if payload["structure_b"] == "":
+            return render_template("questionnaire.html", error="Please choose the emoji-password structure option.")
+
+        # If structure_b is emoji_only, placement_b is not applicable, but strategy_b and semantic_b are still required.
+        if payload["structure_b"] == "emoji_only":
+            if payload["strategy_b"] == "":
+                return render_template("questionnaire.html", error="Please choose a strategy for the emoji-only password.")
+            if payload["semantic_b"] is None or not (1 <= payload["semantic_b"] <= 7):
+                return render_template("questionnaire.html", error="Please answer the meaning/story question (1–7).")
+        else:
+            if payload["placement_b"] == "":
+                return render_template("questionnaire.html", error="Please choose the emoji placement option.")
+            if payload["strategy_b"] == "":
+                return render_template("questionnaire.html", error="Please choose a strategy option for emoji selection.")
+            if payload["semantic_b"] is None or not (1 <= payload["semantic_b"] <= 7):
+                return render_template("questionnaire.html", error="Please answer the semantic relation question (1–7).")
 
         db.execute(
             """
-                INSERT INTO questionnaire(
+            INSERT INTO questionnaire(
                 participant_id,
                 ease_a, ease_b,
                 secure_a, secure_b,
                 memory_a, memory_b,
                 effort_b,
+                structure_b, placement_b,
                 strategy_b,
+                semantic_b,
                 prefer, willing,
                 comment,
                 created_at
             )
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 pid,
@@ -377,10 +624,12 @@ def questionnaire():
                 payload["secure_a"], payload["secure_b"],
                 payload["memory_a"], payload["memory_b"],
                 payload["effort_b"],
+                payload["structure_b"], payload["placement_b"],
                 payload["strategy_b"],
+                payload["semantic_b"],
                 payload["prefer"], payload["willing"],
                 payload["comment"],
-                utc_now_iso()
+                utc_now_iso(),
             ),
         )
         db.commit()
@@ -388,7 +637,7 @@ def questionnaire():
 
     return render_template("questionnaire.html", error=None)
 
-# Done page that thanks participant and shows their code. Exports data to CSV.
+
 @app.route("/done")
 def done():
     pid = current_participant_id()
@@ -397,7 +646,6 @@ def done():
 
     code = session.get("participant_code")
 
-    # export one row to data.csv
     try:
         export_participant_to_csv(pid, code)
     except Exception:
@@ -406,8 +654,10 @@ def done():
     return render_template("done.html", participant_code=code)
 
 
-# ---------------- API ----------------
-# These API endpoints are called by frontend JS to record events and secrets. They return JSON responses and do not render templates.
+# ---------------------------
+# API
+# ---------------------------
+
 @app.route("/api/event/start", methods=["POST"])
 def api_event_start():
     pid = current_participant_id()
@@ -431,7 +681,7 @@ def api_event_start():
     db.commit()
     return jsonify({"ok": True, "event_id": cur.lastrowid})
 
-# API endpoint to end an event by event_id. Updates the event with ended_at, duration_ms, success, attempts, and note.
+
 @app.route("/api/event/end", methods=["POST"])
 def api_event_end():
     pid = current_participant_id()
@@ -464,12 +714,13 @@ def api_event_end():
     db.commit()
     return jsonify({"ok": True})
 
-# API endpoint to set the secret for a condition. Uses UPSERT to allow updating the secret if already set. This is for research prototype ONLY and should not be used in production.
+
 @app.route("/api/secret/set", methods=["POST"])
 def api_secret_set():
     """
-    Plaintext secret stored for research prototype ONLY.
-    Uses UPSERT so repeated saves won't fail.
+    Stores raw secret_text for confirm/login matching (prototype only).
+    Also stores derived features for analysis (exportable).
+    Raw secret is NOT exported to CSV.
     """
     pid = current_participant_id()
     if pid is None:
@@ -481,20 +732,44 @@ def api_secret_set():
     if cond not in ("A", "B") or not isinstance(secret_text, str) or len(secret_text) < 1:
         return jsonify({"ok": False, "error": "bad params"}), 400
 
+    feats = extract_secret_features(secret_text, cond)
+
     db = get_db()
     db.execute(
         """
-        INSERT INTO secrets(participant_id, condition, secret_text, created_at)
-        VALUES (?,?,?,?)
+        INSERT INTO secrets(
+            participant_id, condition, secret_text,
+            pw_tokens_len, emoji_count, emoji_single, emoji_first, emoji_at_end, emoji_within, emoji_only,
+            emojis_used, first_emoji_bias,
+            created_at
+        )
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(participant_id, condition)
-        DO UPDATE SET secret_text=excluded.secret_text, created_at=excluded.created_at
+        DO UPDATE SET
+            secret_text=excluded.secret_text,
+            pw_tokens_len=excluded.pw_tokens_len,
+            emoji_count=excluded.emoji_count,
+            emoji_single=excluded.emoji_single,
+            emoji_first=excluded.emoji_first,
+            emoji_at_end=excluded.emoji_at_end,
+            emoji_within=excluded.emoji_within,
+            emoji_only=excluded.emoji_only,
+            emojis_used=excluded.emojis_used,
+            first_emoji_bias=excluded.first_emoji_bias,
+            created_at=excluded.created_at
         """,
-        (pid, cond, secret_text, utc_now_iso()),
+        (
+            pid, cond, secret_text,
+            feats["pw_tokens_len"], feats["emoji_count"], feats["emoji_single"], feats["emoji_first"],
+            feats["emoji_at_end"], feats["emoji_within"], feats["emoji_only"],
+            feats["emojis_used"], feats["first_emoji_bias"],
+            utc_now_iso(),
+        ),
     )
     db.commit()
     return jsonify({"ok": True})
 
-# API endpoint to check if the attempted secret matches the stored secret for the condition. Returns {"ok": True, "match": True/False} if successful.
+
 @app.route("/api/secret/check", methods=["POST"])
 def api_secret_check():
     pid = current_participant_id()
