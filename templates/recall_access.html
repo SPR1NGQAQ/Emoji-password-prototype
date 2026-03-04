@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>48-hour recall access</h1>
+<p class="muted">Enter your participant code to continue the recall stage.</p>
+<p class="muted">Code matching is case-insensitive (automatically treated as lowercase).</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if remain_hours is not none %}
+<p class="muted">Estimated remaining time: <b>{{ remain_hours }}</b> hours.</p>
+{% endif %}
+
+<form method="post">
+  <label>Participant code</label>
+  <input type="text" name="participant_code" minlength="4" maxlength="32" pattern="[A-Za-z0-9_]{4,32}" title="Use your saved code: 4-32 letters, numbers, or underscore (_)" autocomplete="off" required />
+  <button type="submit">Enter recall stage</button>
+</form>
+{% endblock %}

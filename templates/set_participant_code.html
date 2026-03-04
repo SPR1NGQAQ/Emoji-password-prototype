@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Set your participant code</h1>
+<p class="muted">Before D0 questionnaire, please create a code you can remember and re-enter on D2 recall.</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post">
+  <label>Participant code (at least 4 characters)</label>
+  <input type="text" name="participant_code" minlength="4" maxlength="32" pattern="[A-Za-z0-9_]{4,32}" title="Use 4-32 letters, numbers, or underscore (_)" autocomplete="off" required />
+  <p class="muted">Allowed: letters, numbers, underscore (_). Length: 4–32. Input is saved as lowercase.</p>
+  <button type="submit">Save code</button>
+</form>
+{% endblock %}

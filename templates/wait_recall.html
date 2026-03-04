@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>First session completed</h1>
+<p class="muted">Please return after 48 hours for password recall.</p>
+<p>Your participant code: <span class="pill">{{ session.participant_code }}</span></p>
+<p class="muted">Current estimated remaining time: <b>{{ remain_hours }}</b> hours.</p>
+<p><a class="link" href="{{ url_for('home') }}">Back to home</a></p>
+{% endblock %}

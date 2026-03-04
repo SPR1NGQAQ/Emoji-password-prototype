@@ -5,17 +5,30 @@
 <p>Your participant code: <span class="pill">{{ participant_code }}</span></p>
 
 <p class="muted">
-  You chose to do Condition {{ first }} first, then Condition {{ second }}.
+  Current stage:
+  {% if mode == 'initial' %}
+    <b>First session</b>
+  {% else %}
+    <b>48-hour recall</b>
+  {% endif %}
+</p>
+
+{% if mode == 'recall' and recall_delay_text %}
+<p class="muted">Time since your D0 questionnaire: <b>{{ recall_delay_text }}</b></p>
+{% endif %}
+
+<p class="muted">
+  You chose to do {{ first_label }} first, then {{ second_label }}.
 </p>
 
 <ul>
-  <li>Condition {{ first }}: {% if done_first %}✅ done{% else %}⏳ pending{% endif %}</li>
-  <li>Condition {{ second }}: {% if done_second %}✅ done{% else %}⏳ pending{% endif %}</li>
+  <li>{{ first_label }}: {% if done_first %}✅ done{% else %}⏳ pending{% endif %}</li>
+  <li>{{ second_label }}: {% if done_second %}✅ done{% else %}⏳ pending{% endif %}</li>
 </ul>
 
 <p>
   <a class="link" href="{{ url_for('task', cond=next_cond) }}">
-    Start next task (Condition {{ next_cond }})
+    Start next {% if mode == 'recall' %}recall{% else %}task{% endif %} ({{ next_label }})
   </a>
 </p>
 

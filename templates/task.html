@@ -13,14 +13,16 @@
 
 {% if condition == 'A' %}
 <p><b>Traditional password</b> (text / numbers). Create any password you would realistically use (but NOT a real one you use elsewhere).</p>
+<p class="muted">Requirement: minimum length is 6 characters.</p>
 {% else %}
 <p><b>Emoji password</b>. Click the input box to open the emoji menu and click emojis to insert.</p>
+<p class="muted">Requirement: minimum length is 6 characters and include at least 1 emoji. Please choose emojis carefully because menu order may differ across forms/sessions.</p>
 {% endif %}
 
 <div id="stage-create">
   <h2>1) Create password</h2>
   <label>Password</label>
-  <input id="create1" type="text" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
+  <input id="create1" type="text" minlength="6" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
   <button id="btnCreate">Save & Continue</button>
   <p id="createMsg" class="muted"></p>
 </div>
@@ -28,7 +30,7 @@
 <div id="stage-confirm" style="display:none;">
   <h2>2) Confirm password</h2>
   <label>Re-enter password</label>
-  <input id="confirm1" type="text" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
+  <input id="confirm1" type="text" minlength="6" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
   <button id="btnConfirm">Confirm</button>
   <p id="confirmMsg" class="muted"></p>
 </div>
@@ -36,7 +38,7 @@
 <div id="stage-login" style="display:none;">
   <h2>3) Login (up to 3 attempts)</h2>
   <label>Enter your password to login</label>
-  <input id="login1" type="text" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
+  <input id="login1" type="text" minlength="6" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
   <button id="btnLogin">Login</button>
   <p id="loginMsg" class="muted"></p>
 </div>

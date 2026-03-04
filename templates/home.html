@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Emoji Password Study (Prototype)</h1>
-<p class="muted">Coursework prototype: A/B password input with a short user study.</p>
-<p><a class="link" href="{{ url_for('consent') }}">Start</a></p>
+<p class="muted">Coursework prototype: first session + 48-hour recall + final questionnaire.</p>
+<p class="muted">After finishing A/B in D0, you will set your own participant code for D2 recall login.</p>
+<p><a class="link" href="{{ url_for('consent') }}">Start first session</a></p>
+<p><a class="link" href="{{ url_for('recall_access') }}">I am returning for 48h recall</a></p>
 {% endblock %}

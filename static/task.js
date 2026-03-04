@@ -45,6 +45,10 @@ function countChars(str) {
   return Array.from(str).length;
 }
 
+function containsAnyEmoji(str) {
+  return EMOJI_SET_ORDERED.some((e) => str.includes(e));
+}
+
 function insertAtCursor(input, text) {
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? input.value.length;
@@ -181,6 +185,14 @@ async function main() {
       $("createMsg").textContent = "Please enter a password.";
       return;
     }
+    if (countChars(v) < 6) {
+      $("createMsg").textContent = "Password must be at least 6 characters.";
+      return;
+    }
+    if (cond === "B" && !containsAnyEmoji(v)) {
+      $("createMsg").textContent = "Emoji password must include at least one emoji.";
+      return;
+    }
 
     try {
       const dur = nowMs() - createStart;
@@ -194,7 +206,7 @@ async function main() {
       confirmEventId = await startEvent("confirm");
       confirmStart = nowMs();
     } catch (e) {
-      $("createMsg").textContent = "Error saving. Please try again (or refresh).";
+      $("createMsg").textContent = e?.message || "Error saving. Please try again (or refresh).";
     }
   });
 

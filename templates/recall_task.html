@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script defer src="{{ url_for('static', filename='recall.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div id="recallRoot" data-cond="{{ condition }}" data-emojis='{{ emojis|tojson|safe }}' style="display:none;"></div>
+<h1>48h Recall — {{ cond_label }}</h1>
+
+{% if condition == 'A' %}
+<p><b>Traditional password recall</b>. Re-enter the password you created in your first session.</p>
+<p class="muted">Reminder: the original traditional password had minimum length 6.</p>
+{% else %}
+<p><b>Emoji password recall</b>. Re-enter the same emoji password from your first session.</p>
+<p class="muted">Reminder: the original emoji password had minimum length 6 and at least 1 emoji. Emoji menu order may differ, so choose carefully.</p>
+{% endif %}
+
+<div id="stage-recall">
+  <h2>Recall login (up to 3 attempts)</h2>
+  <label>Enter your original password</label>
+  <input id="recall1" type="text" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
+  <button id="btnRecall">Submit attempt</button>
+  <p id="recallMsg" class="muted"></p>
+</div>
+
+<div id="stage-done" style="display:none;">
+  <h2>Recall for this condition completed</h2>
+  <p><a class="link" href="{{ url_for('start') }}">Return</a></p>
+</div>
+
+{% if condition == 'B' %}
+<hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
+<div id="emojiPalette" style="display:none;">
+  <div class="row" style="justify-content:space-between;">
+    <b>Emoji menu</b>
+    <span class="muted" style="font-size:12px;">Click to insert</span>
+  </div>
+
+  <div id="emojiGrid"
+       style="margin-top:10px;display:grid;grid-template-columns:repeat(10, 1fr);gap:8px;">
+  </div>
+
+  <div class="row" style="margin-top:10px;">
+    <button type="button" id="emojiBackspace">⌫ Backspace</button>
+    <button type="button" id="emojiClear">Clear</button>
+    <button type="button" id="emojiHide">Hide</button>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

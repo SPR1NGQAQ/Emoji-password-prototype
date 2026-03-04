@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>D0 immediate questionnaire</h1>
+<p class="muted">Please answer based on your immediate feeling right after Session 1.</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post">
+  <label>Emoji password felt easier to use than traditional password.</label>
+  <select name="immediate_ease_b_over_a" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>Emoji password felt more secure than traditional password.</label>
+  <select name="immediate_security_b_over_a" required>
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>How did you choose emojis in emoji password?</label>
+  <select name="strategy_b" required>
+    <option value="">Choose</option>
+    <option value="random">Random</option>
+    <option value="meaning">Based on meaning</option>
+    <option value="pattern">Pattern / sequence</option>
+    <option value="easy">Easy to remember</option>
+    <option value="first">Picked the first emoji(s)</option>
+  </select>
+
+  <label>I feel confident I could recall my traditional password after 48 hours.</label>
+  <select name="predicted_recall_a" required>
+    <option value="">Choose</option>
+    <option value="0">I don't know</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>I feel confident I could recall my emoji password after 48 hours.</label>
+  <select name="predicted_recall_b" required>
+    <option value="">Choose</option>
+    <option value="0">I don't know</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <button type="submit">Submit and finish D0</button>
+</form>
+{% endblock %}
