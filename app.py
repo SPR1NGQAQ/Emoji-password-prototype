@@ -1549,9 +1549,6 @@ def api_recall_attempt():
         "matched": bool(matched),
         "attempt_no": attempt_no,
         "finished": finished,
-        "edit_distance": metrics["edit_distance"],
-        "wrong_positions": metrics["wrong_positions"],
-        "error_distribution": metrics["error_distribution"],
     })
 
 

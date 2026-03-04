@@ -119,9 +119,9 @@ async function main() {
       }
 
       if (r.matched) {
-        $("recallMsg").textContent = `Correct. edit_distance=${r.edit_distance}, wrong_positions=${r.wrong_positions}`;
+        $("recallMsg").textContent = "Correct.";
       } else {
-        $("recallMsg").textContent = `Incorrect (${r.attempt_no}/3). edit_distance=${r.edit_distance}, wrong_positions=${r.wrong_positions}`;
+        $("recallMsg").textContent = `Incorrect. Try again (${r.attempt_no}/3).`;
       }
 
       if (r.finished) {
