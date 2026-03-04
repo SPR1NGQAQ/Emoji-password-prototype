@@ -1,203 +1,116 @@
 Emoji Password Study (Coursework Prototype)
-============================================
+===========================================
 
-This application is a coursework prototype for the project:
+Thank you for participating in this short password study.
 
-Improving Passwords using Emojis
-
-The study compares traditional text passwords and emoji-based passwords
-to evaluate:
-
-- Usability (ease of use and memorability)
-- Login performance
-- Structural patterns in emoji passwords
-
-The study takes approximately 5–8 minutes.
-
-
---------------------------------------------------
 IMPORTANT
---------------------------------------------------
+---------
+- Do NOT use any real password you use elsewhere.
+- This is a coursework prototype run locally on the researcher's laptop.
+- Your responses are used for research/analysis only.
+- You can stop at any time.
 
-- Do NOT use any real password that you use elsewhere.
-- This is a coursework prototype.
-- Data is stored locally on your computer only.
-- No personal information is collected.
-- You may stop the study at any time.
+What You Will Do
+----------------
+This study has two sessions:
 
+Session 1 (today, Day 0)
+1) Complete two password tasks:
+   - Condition A: traditional password (text/numbers)
+   - Condition B: emoji password (emoji-only or mixed is up to you)
+   Each task includes: create → confirm → login (up to 3 attempts).
+2) Enter your Participant ID (you create it yourself).
+3) Complete a short questionnaire.
 
---------------------------------------------------
-Study Overview
---------------------------------------------------
+Session 2 (about 48 hours later, Day 2)
+1) Enter the SAME Participant ID again.
+2) Repeat the password login tasks for recall.
+3) Complete a short questionnaire.
 
-Participants complete two conditions:
+Participant ID Rules (Very Important)
+-------------------------------------
+- You must create your own Participant ID and remember it for Session 2.
+- Use something anonymous (e.g., "P_07", "demo01", "u23").
+- Do not use your real name, email, or student ID number.
+- If you forget your Participant ID, Session 2 data cannot be matched to Session 1.
 
+Data Collected
+--------------
+We record anonymous interaction data, such as:
+- Time to create / confirm / login
+- Number of login attempts and whether login succeeded
+- Password length and structural features about emojis (e.g., how many emojis, whether emojis appear at the start/end/within, whether password is emoji-only or mixed)
 
-Condition A — Traditional Password
+For recall analysis (Session 2), we also store the password in plain text locally
+so we can compare Session 1 and Session 2 attempts (e.g., whether the recalled
+password matches and how many characters/emojis differ). This data stays on the
+researcher's laptop and is not published.
 
-Participants create and use a normal text password.
+After Session 2 is completed, a summary row is exported to:
+- data.csv
 
-Example:
-cat123house
-
-
-Condition B — Emoji Password
-
-Participants create and use a password containing emojis.
-
-Example:
-cat123🐬🔥
-
-Participants select emojis from a menu containing 80 emojis.
-
-- All participants use the same set of 80 emojis.
-- The order of emojis is randomized per participant.
-- This reduces position bias while keeping conditions consistent.
-
-
---------------------------------------------------
 How to Run (Windows)
---------------------------------------------------
+--------------------
+1) Ensure Python 3.10+ is installed.
+2) Open PowerShell in this project folder.
+3) (Recommended) Create and activate a virtual environment:
 
-1. Extract the zip file.
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
 
-2. Double-click:
+4) Install requirements:
 
-run_emoji.bat
+   pip install -r requirements.txt
 
-3. A browser window should open automatically.
+5) Start the server:
 
-If not, manually open:
+   python app.py
 
-http://127.0.0.1:5000
+6) Open the study in a browser:
 
-4. Complete the study.
+   http://127.0.0.1:5000
 
-5. When finished, close the window.
+How to Run (macOS / Linux)
+--------------------------
+1) Ensure Python 3.10+ is installed.
+2) In Terminal, go to this folder.
+3) (Recommended) Create and activate a virtual environment:
 
-6. Send the file:
+   python3 -m venv .venv
+   source .venv/bin/activate
 
-data.csv
+4) Install requirements:
 
-to the researcher.
+   pip install -r requirements.txt
 
+5) Start the server:
 
---------------------------------------------------
-What Data Is Collected?
---------------------------------------------------
+   python3 app.py
 
-Interaction Data:
+6) Open:
 
-- Time to create password
-- Time to confirm password
-- Login time
-- Login attempts
-- Login success
+   http://127.0.0.1:5000
 
-
-Emoji Password Structure:
-
-For emoji passwords, the system records structural features such as:
-
-- Number of emojis used
-- Whether emojis appear at the end of the password
-- Whether emojis appear inside the password
-- Which emojis were used
-- Whether the first emoji in the menu was selected
-
-
-Questionnaire:
-
-Participants answer a short questionnaire about:
-
-- Ease of use
-- Perceived security
-- Memorability
-- Mental effort
-- Emoji selection strategy
-- Overall preference
-
-
---------------------------------------------------
-Privacy and Security
---------------------------------------------------
-
-Raw passwords are NOT exported.
-
-Passwords are temporarily stored locally only for login verification,
-and are NOT included in the final dataset.
-
-The exported dataset (data.csv) contains only:
-
-- Timing information
-- Structural features
-- Questionnaire responses
-
-No names, emails, or identifying information are collected.
-
-
---------------------------------------------------
-Output File
---------------------------------------------------
-
-After completing the study, a file called:
-
-data.csv
-
-will be generated.
-
-Each row represents one participant.
-
-
---------------------------------------------------
-Important Note (Excel Users)
---------------------------------------------------
-
-If emojis appear as unreadable characters in Excel:
-
-Open the file using:
-
-Data → From Text/CSV → Select UTF-8 encoding
-
-Alternatively open the file in:
-
-- VS Code
-- Notepad++
-- Google Sheets
-
-
---------------------------------------------------
 Troubleshooting
---------------------------------------------------
+---------------
+- Port already in use (5000):
+  Close other programs using port 5000, or change the port in app.py.
 
-If Python is not installed:
+- Emojis look like squares / missing:
+  Some older systems or browsers may not support newer emojis.
+  If this happens, try a different browser or device.
 
-Install Python 3.10 or newer:
+- Data not matching between sessions:
+  Make sure the same Participant ID is used in Session 1 and Session 2.
 
-https://www.python.org/downloads/
+- If you changed database schema during development:
+  Delete emoji.db and restart the server to re-create tables.
+  (Do not do this once real data collection has started.)
 
-
-If the page does not load:
-
-Make sure no other program is using port 5000.
-
-Then restart the program.
-
-
---------------------------------------------------
-Coursework Context
---------------------------------------------------
-
-This system was developed for a university coursework project investigating:
-
-Improving Passwords using Emojis
-
-The study evaluates whether emoji passwords improve usability
-while introducing predictable patterns.
-
-The study focuses on:
-
-- Emoji placement (start / end / within password)
-- Number of emojis used
-- Emoji selection behaviour
-- Usability vs security trade-offs
+Files You May See
+-----------------
+- app.py              : Flask backend (routes, database, export)
+- templates/          : HTML pages
+- static/task.js      : Frontend logic for the task flow + emoji menu
+- emoji.db            : Local SQLite database (created automatically)
+- data.csv            : Exported summary after Session 2 (created automatically)
