@@ -91,38 +91,6 @@ How to Run (macOS / Linux)
 
    http://127.0.0.1:5000
 
-Recall Timing Config (Enable/Disable 48h Gate)
-----------------------------------------------
-By default, the recall gate is enabled and requires 48 hours.
-
-You can control it at runtime with environment variables:
-
-- ENABLE_48H_GATE
-  - `1` / `true` / `yes` / `on` = enable delay gate
-  - `0` / `false` / `no` / `off` = disable delay gate
-
-- RECALL_GATE_HOURS
-  - Number of hours to wait before recall is allowed (default `48`)
-
-Windows PowerShell examples:
-
-   $env:ENABLE_48H_GATE = "1"
-   $env:RECALL_GATE_HOURS = "48"
-   python app.py
-
-Disable gate for internal testing:
-
-   $env:ENABLE_48H_GATE = "0"
-   python app.py
-
-macOS / Linux examples:
-
-   ENABLE_48H_GATE=1 RECALL_GATE_HOURS=48 python3 app.py
-
-Disable gate:
-
-   ENABLE_48H_GATE=0 python3 app.py
-
 Troubleshooting
 ---------------
 - Port already in use (5000):

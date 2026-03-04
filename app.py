@@ -367,7 +367,7 @@ def format_duration_hms(total_seconds: Optional[int]) -> str:
 def seconds_to_48h_window(pid: int) -> Optional[int]:
     if not ENABLE_48H_GATE:
         return 0
-    created = get_participant_created_at(pid)
+    created = get_d0_questionnaire_time(pid)
     if created is None:
         return None
     target = created + timedelta(hours=48)
@@ -471,7 +471,10 @@ def get_or_make_emoji_order_for_session() -> List[str]:
         stable within the session.
     """
     key = "emoji_order_B"
-    if key in session:
+    owner_key = "emoji_order_B_owner"
+    current_owner = normalize_participant_code(session.get("participant_code") or "")
+
+    if session.get(owner_key) == current_owner and key in session:
         try:
             arr = session[key]
             if isinstance(arr, list) and len(arr) == len(EMOJI_SET_FIXED_80):
@@ -482,6 +485,7 @@ def get_or_make_emoji_order_for_session() -> List[str]:
     arr = EMOJI_SET_FIXED_80[:]
     random.shuffle(arr)
     session[key] = arr
+    session[owner_key] = current_owner
     return arr
 
 
@@ -837,6 +841,7 @@ def consent():
         session.pop("order_choice", None)
         session.pop("recall_mode", None)
         session.pop("emoji_order_B", None)  # reset emoji order for fresh participant session
+        session.pop("emoji_order_B_owner", None)
         return redirect(url_for("choose_order"))
     return render_template("consent.html", error=None)
 
@@ -907,6 +912,8 @@ def recall_access():
         session["participant_code"] = code
         session["recall_mode"] = True
         session["recall_delay_seconds"] = recall_delay_since_d0_seconds(pid)
+        session.pop("emoji_order_B", None)
+        session.pop("emoji_order_B_owner", None)
         session.pop("recall_order_choice", None)
         return redirect(url_for("choose_recall_order"))
 
