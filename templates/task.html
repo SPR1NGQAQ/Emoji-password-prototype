@@ -4,6 +4,7 @@
 <script>
   window.__COND__ = "{{ condition }}";
   window.__EMOJIS__ = {{ emojis|tojson }};
+  window.__INITIAL_RECALL_WAIT_SECONDS__ = {{ initial_recall_wait_seconds|default(600) }};
 </script>
 <script defer src="{{ url_for('static', filename='task.js') }}"></script>
 {% endblock %}
@@ -12,31 +13,32 @@
 <h1>Condition {{ condition }}</h1>
 
 {% if condition == 'A' %}
-<p><b>Traditional password</b> (text / numbers). Create any password you would realistically use (but NOT a real one you use elsewhere).</p>
-<p class="muted">Requirement: minimum length is 6 characters.</p>
+<p><b>Traditional password</b> (letters / numbers / symbols). Create any password you would realistically use (but NOT a real one you use elsewhere).</p>
+<p class="muted">Requirement: minimum length is 6 characters. Symbols like ! @ _ are allowed.</p>
 {% else %}
-<p><b>Emoji password</b>. Click the input box to open the emoji menu and click emojis to insert.</p>
-<p class="muted">Requirement: minimum length is 6 characters and include at least 1 emoji. Please choose emojis carefully because menu order may differ across forms/sessions.</p>
+<p><b>Emoji password</b> (emojis + optional letters / numbers / symbols). Click the input box to open the emoji menu and click emojis to insert.</p>
+<p class="muted">Requirement: minimum length is 6 characters and include at least 1 emoji. Symbols like ! @ _ are allowed. Please choose emojis carefully because menu order may differ across forms/sessions.</p>
 {% endif %}
 
 <div id="stage-create">
-  <h2>1) Create password</h2>
-  <label>Password</label>
+  <h2>1) Create + confirm password (same page)</h2>
+  <label>Create password</label>
   <input id="create1" type="text" minlength="6" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
-  <button id="btnCreate">Save & Continue</button>
-  <p id="createMsg" class="muted"></p>
-</div>
-
-<div id="stage-confirm" style="display:none;">
-  <h2>2) Confirm password</h2>
   <label>Re-enter password</label>
   <input id="confirm1" type="text" minlength="6" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
-  <button id="btnConfirm">Confirm</button>
-  <p id="confirmMsg" class="muted"></p>
+  <button id="btnConfirm">Save and confirm</button>
+  <p id="confirmMsg" class="muted">If create and confirm are different, password creation is not successful.</p>
+</div>
+
+<div id="stage-wait" style="display:none;">
+  <h2>2) Wait for 10min recall</h2>
+  <p class="muted">Please wait before starting the login recall test.</p>
+  <p class="muted">Remaining time: <b id="waitCountdown">10:00</b></p>
+  <p id="waitMsg" class="muted"></p>
 </div>
 
 <div id="stage-login" style="display:none;">
-  <h2>3) Login (up to 3 attempts)</h2>
+  <h2>3) 10min recall login (up to 3 attempts)</h2>
   <label>Enter your password to login</label>
   <input id="login1" type="text" minlength="6" autocomplete="off" {% if condition=='B' %}class="emoji-input"{% endif %}/>
   <button id="btnLogin">Login</button>

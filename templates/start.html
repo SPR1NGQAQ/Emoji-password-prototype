@@ -14,16 +14,16 @@
 </p>
 
 {% if mode == 'recall' and recall_delay_text %}
-<p class="muted">Time since your D0 questionnaire: <b>{{ recall_delay_text }}</b></p>
+<p class="muted">Time since your first session started: <b>{{ recall_delay_text }}</b></p>
 {% endif %}
 
 <p class="muted">
-  You chose to do {{ first_label }} first, then {{ second_label }}.
+  Assigned group: <b>{{ assigned_label }}</b>
 </p>
 
 <ul>
-  <li>{{ first_label }}: {% if done_first %}✅ done{% else %}⏳ pending{% endif %}</li>
-  <li>{{ second_label }}: {% if done_second %}✅ done{% else %}⏳ pending{% endif %}</li>
+  <li>Session 1 task: {% if done_task %}✅ done{% else %}⏳ pending{% endif %}</li>
+  <li>48-hour recall: {% if done_recall %}✅ done{% else %}⏳ pending{% endif %}</li>
 </ul>
 
 <p>

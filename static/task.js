@@ -1,9 +1,6 @@
 /**
- * task.js (final)
- * - Drives create -> confirm -> login flow for A/B conditions
- * - Records timing events via backend API
- * - Emoji picker for condition B
- * - Emoji order is provided by backend per participant session (stable within session)
+ * task.js
+ * Day-0 flow: create+confirm on one page -> 10min recall wait -> login recall.
  */
 
 // ----------------- Helpers -----------------
@@ -24,6 +21,7 @@ const $ = (id) => document.getElementById(id);
 
 // Condition is written by task.html into window.__COND__
 let cond = window.__COND__;
+const INITIAL_RECALL_WAIT_SECONDS = Number(window.__INITIAL_RECALL_WAIT_SECONDS__ ?? 10 * 60);
 
 // ----------------- Emoji Set (from backend) -----------------
 const EMOJI_SET_ORDERED = Array.isArray(window.__EMOJIS__) ? window.__EMOJIS__ : [];
@@ -131,7 +129,7 @@ function setupEmojiPickerIfNeeded() {
   $("emojiHide")?.addEventListener("click", () => showPalette(false));
 }
 
-// ----------------- Study flow (create -> confirm -> login) -----------------
+// ----------------- Study flow -----------------
 let createEventId = null;
 let confirmEventId = null;
 let loginEventId = null;
@@ -141,6 +139,8 @@ let confirmStart = 0;
 let loginStart = 0;
 
 let loginAttempts = 0;
+let loginWrongPositionsTotal = 0;
+let waitTimer = null;
 
 async function startEvent(type) {
   const r = await postJSON("/api/event/start", { condition: cond, event_type: type });
@@ -165,86 +165,147 @@ async function setSecret(secretText) {
   if (!r.ok) throw new Error(r.error || "setSecret failed");
 }
 
-async function checkSecret(attemptText) {
-  const r = await postJSON("/api/secret/check", { condition: cond, attempt_text: attemptText });
-  if (!r.ok) throw new Error(r.error || "checkSecret failed");
-  return !!r.match;
+async function checkSecretForStage(attemptText, stage) {
+  const r = await postJSON("/api/secret/check", {
+    condition: cond,
+    attempt_text: attemptText,
+    stage,
+  });
+  if (!r.ok) {
+    const err = new Error(r.error || "checkSecret failed");
+    err.remainingSeconds = Number(r.remaining_seconds || 0);
+    throw err;
+  }
+  return {
+    match: !!r.match,
+    wrong_positions: Number(r.wrong_positions || 0),
+  };
+}
+
+function formatMMSS(totalSec) {
+  const sec = Math.max(0, Number(totalSec || 0));
+  const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+  const ss = String(sec % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
+function showStage(stageId) {
+  const ids = ["stage-create", "stage-wait", "stage-login", "stage-done"];
+  for (const id of ids) {
+    const el = $(id);
+    if (!el) continue;
+    el.style.display = id === stageId ? "block" : "none";
+  }
+}
+
+function startWaitCountdown(totalSeconds) {
+  const countdown = $("waitCountdown");
+  const msg = $("waitMsg");
+  let remain = Math.max(0, Number(totalSeconds || 0));
+
+  if (countdown) countdown.textContent = formatMMSS(remain);
+  if (msg) msg.textContent = "";
+  showStage("stage-wait");
+
+  if (waitTimer) {
+    clearInterval(waitTimer);
+    waitTimer = null;
+  }
+
+  if (remain <= 0) {
+    showStage("stage-login");
+    return;
+  }
+
+  waitTimer = setInterval(() => {
+    remain -= 1;
+    if (countdown) countdown.textContent = formatMMSS(remain);
+    if (remain <= 0) {
+      clearInterval(waitTimer);
+      waitTimer = null;
+      showStage("stage-login");
+    }
+  }, 1000);
+}
+
+function beginLoginStage() {
+  loginAttempts = 0;
+  loginWrongPositionsTotal = 0;
+  loginEventId = null;
+  loginStart = 0;
+  const msg = $("loginMsg");
+  if (msg) msg.textContent = "";
+  startWaitCountdown(INITIAL_RECALL_WAIT_SECONDS);
 }
 
 async function main() {
   setupEmojiPickerIfNeeded();
 
-  // -------- Stage 1: Create --------
+  // Stage 1: create + confirm in one form
   createEventId = await startEvent("create");
   createStart = nowMs();
 
-  $("btnCreate").addEventListener("click", async () => {
-    const v = $("create1").value;
+  showStage("stage-create");
+  $("btnConfirm").addEventListener("click", async () => {
+    const createValue = $("create1").value;
+    const confirmValue = $("confirm1").value;
+    const confirmMsg = $("confirmMsg");
 
-    if (!v) {
-      $("createMsg").textContent = "Please enter a password.";
+    if (!createValue) {
+      confirmMsg.textContent = "Please enter a password.";
       return;
     }
-    if (countChars(v) < 6) {
-      $("createMsg").textContent = "Password must be at least 6 characters.";
+    if (!confirmValue) {
+      confirmMsg.textContent = "Please re-enter the password.";
       return;
     }
-    if (cond === "B" && !containsAnyEmoji(v)) {
-      $("createMsg").textContent = "Emoji password must include at least one emoji.";
+    if (countChars(createValue) < 6) {
+      confirmMsg.textContent = "Password must be at least 6 characters.";
+      return;
+    }
+    if (cond === "B" && !containsAnyEmoji(createValue)) {
+      confirmMsg.textContent = "Emoji password must include at least one emoji.";
+      return;
+    }
+    if (createValue !== confirmValue) {
+      confirmMsg.textContent = "Create and confirm do not match. Password is not created.";
       return;
     }
 
     try {
-      const dur = nowMs() - createStart;
-      await setSecret(v);
-      await endEvent(createEventId, dur, 1, null, null);
+      await setSecret(createValue);
 
-      $("stage-create").style.display = "none";
-      $("stage-confirm").style.display = "block";
-      $("createMsg").textContent = "";
+      const createDur = nowMs() - createStart;
+      await endEvent(createEventId, createDur, 1, null, null);
 
       confirmEventId = await startEvent("confirm");
       confirmStart = nowMs();
-    } catch (e) {
-      $("createMsg").textContent = e?.message || "Error saving. Please try again (or refresh).";
-    }
-  });
 
-  // -------- Stage 2: Confirm --------
-  $("btnConfirm").addEventListener("click", async () => {
-    const v = $("confirm1").value;
+      const res = await checkSecretForStage(confirmValue, "confirm");
+      const ok = res.match;
+      const confirmDur = nowMs() - confirmStart;
 
-    if (!v) {
-      $("confirmMsg").textContent = "Please re-enter the password.";
-      return;
-    }
-
-    try {
-      const ok = await checkSecret(v);
-      const dur = nowMs() - confirmStart;
-
-      await endEvent(confirmEventId, dur, ok ? 1 : 0, null, ok ? null : "confirm mismatch");
+      await endEvent(confirmEventId, confirmDur, ok ? 1 : 0, 1, ok ? null : "confirm mismatch");
 
       if (!ok) {
-        $("confirmMsg").textContent = "Does not match. Try again.";
-        confirmEventId = await startEvent("confirm");
-        confirmStart = nowMs();
+        createEventId = await startEvent("create");
+        createStart = nowMs();
+        confirmMsg.textContent = "Does not match. Please try again.";
         return;
       }
 
-      $("stage-confirm").style.display = "none";
-      $("stage-login").style.display = "block";
-      $("confirmMsg").textContent = "";
-
-      loginAttempts = 0;
-      loginEventId = await startEvent("login");
-      loginStart = nowMs();
+      if (INITIAL_RECALL_WAIT_SECONDS > 0) {
+        confirmMsg.textContent = "Saved. Please wait for 10min recall.";
+      } else {
+        confirmMsg.textContent = "Saved. Proceed to login recall.";
+      }
+      beginLoginStage();
     } catch (e) {
-      $("confirmMsg").textContent = "Error. Try again.";
+      confirmMsg.textContent = e?.message || "Error. Try again.";
     }
   });
 
-  // -------- Stage 3: Login --------
+  // Stage 2: 10min recall login (max 3 attempts)
   $("btnLogin").addEventListener("click", async () => {
     const v = $("login1").value;
 
@@ -254,23 +315,33 @@ async function main() {
     }
 
     try {
+      if (!loginEventId) {
+        loginEventId = await startEvent("login");
+        loginStart = nowMs();
+      }
+
       loginAttempts += 1;
-      const ok = await checkSecret(v);
+      const res = await checkSecretForStage(v, "login");
+      const ok = res.match;
+      loginWrongPositionsTotal += Number(res.wrong_positions || 0);
       const dur = nowMs() - loginStart;
 
-      await endEvent(loginEventId, dur, ok ? 1 : 0, loginAttempts, ok ? null : "login failed");
+      const notePayload = {
+        wrong_positions_this_attempt: Number(res.wrong_positions || 0),
+        character_error_total: loginWrongPositionsTotal,
+      };
+
+      await endEvent(loginEventId, dur, ok ? 1 : 0, loginAttempts, JSON.stringify(notePayload));
 
       if (ok) {
         $("loginMsg").textContent = "Login success.";
-        $("stage-login").style.display = "none";
-        $("stage-done").style.display = "block";
+        showStage("stage-done");
         return;
       }
 
       if (loginAttempts >= 3) {
         $("loginMsg").textContent = "Login failed (3 attempts).";
-        $("stage-login").style.display = "none";
-        $("stage-done").style.display = "block";
+        showStage("stage-done");
         return;
       }
 
@@ -278,7 +349,13 @@ async function main() {
       loginEventId = await startEvent("login");
       loginStart = nowMs();
     } catch (e) {
-      $("loginMsg").textContent = "Error. Try again.";
+      const remain = Number(e?.remainingSeconds || 0);
+      if (remain > 0) {
+        $("loginMsg").textContent = `10min recall not ready. Remaining ${formatMMSS(remain)}.`;
+        startWaitCountdown(remain);
+        return;
+      }
+      $("loginMsg").textContent = e?.message || "Error. Try again.";
     }
   });
 }

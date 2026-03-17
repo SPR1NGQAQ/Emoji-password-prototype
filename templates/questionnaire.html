@@ -2,12 +2,43 @@
 {% block content %}
 <h1>Post-recall questionnaire</h1>
 <p class="muted">Scale: 1 (strongly disagree) … 7 (strongly agree)</p>
+<p class="muted">All questions are optional.</p>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
 <form method="post" id="qForm">
 
+  {% if assigned_cond == 'A' %}
+
+  <label>Traditional password felt easy to use.</label>
+  <select name="ease_self">
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>Traditional password felt secure.</label>
+  <select name="secure_self">
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <label>I could recall my traditional password after ~48 hours.</label>
+  <select name="recall_confidence_self">
+    <option value="">Choose</option>
+    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
+  </select>
+
+  <hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
+
+  <label>Any comments? (optional)</label>
+  <textarea name="comment" rows="4" placeholder="What was confusing / enjoyable / annoying?"></textarea>
+
+  <button type="submit">Submit</button>
+  <button type="submit" name="skip" value="1" formnovalidate>Skip and finish</button>
+
+  {% else %}
+
   <label>Which structure best describes your emoji password?</label>
-  <select name="emoji_form_self" id="emoji_form_self" required>
+  <select name="emoji_form_self" id="emoji_form_self">
     <option value="">Choose</option>
     <option value="emoji_only">Pure emojis only</option>
     <option value="mixed">Emojis + letters/numbers (mixed)</option>
@@ -15,56 +46,32 @@
 
   <hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
 
-  <label>Traditional password felt easy to use.</label>
-  <select name="ease_a" required>
-    <option value="">Choose</option>
-    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
-  </select>
-
   <label>Emoji password felt easy to use.</label>
-  <select name="ease_b" required>
-    <option value="">Choose</option>
-    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
-  </select>
-
-  <label>Traditional password felt secure.</label>
-  <select name="secure_a" required>
+  <select name="ease_self">
     <option value="">Choose</option>
     {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
   </select>
 
   <label>Emoji password felt secure.</label>
-  <select name="secure_b" required>
-    <option value="">Choose</option>
-    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
-  </select>
-
-  <label>I could recall my traditional password after ~48 hours.</label>
-  <select name="recall_confidence_a" required>
+  <select name="secure_self">
     <option value="">Choose</option>
     {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
   </select>
 
   <label>I could recall my emoji password after ~48 hours.</label>
-  <select name="recall_confidence_b" required>
+  <select name="recall_confidence_self">
     <option value="">Choose</option>
     {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
   </select>
 
   <label>The emoji password required more mental effort than the traditional password.</label>
-  <select name="effort_b" required>
-    <option value="">Choose</option>
-    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
-  </select>
-
-  <label>Overall preference: 1 = strongly prefer traditional password, 7 = strongly prefer emoji password</label>
-  <select name="prefer" required>
+  <select name="effort_b">
     <option value="">Choose</option>
     {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
   </select>
 
   <label>I would be willing to use emoji passwords in real life.</label>
-  <select name="willing" required>
+  <select name="willing">
     <option value="">Choose</option>
     {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
   </select>
@@ -72,19 +79,13 @@
   <hr style="margin:18px 0;border:none;border-top:1px solid #eee;">
 
   <label>How did you choose emojis in emoji password?</label>
-  <select name="strategy_b" required>
+  <select name="strategy_b">
     <option value="">Choose</option>
     <option value="random">Random</option>
     <option value="meaning">Based on meaning</option>
     <option value="pattern">Pattern / sequence</option>
     <option value="easy">Easy to remember</option>
     <option value="first">Picked the first emoji(s)</option>
-  </select>
-
-  <label>My emojis were chosen to relate to the meaning of my password.</label>
-  <select name="semantic_b" required>
-    <option value="">Choose</option>
-    {% for i in range(1,8) %}<option value="{{i}}">{{i}}</option>{% endfor %}
   </select>
 
   <div id="branch_emoji_only" style="display:none;">
@@ -135,6 +136,9 @@
   <textarea name="comment" rows="4" placeholder="What was confusing / enjoyable / annoying?"></textarea>
 
   <button type="submit">Submit</button>
+  <button type="submit" name="skip" value="1" formnovalidate>Skip and finish</button>
+
+  {% endif %}
 </form>
 
 <script>
@@ -190,7 +194,10 @@
     }
   }
 
-  document.getElementById("emoji_form_self").addEventListener("change", updateBranch);
-  updateBranch();
+  const formSelect = document.getElementById("emoji_form_self");
+  if (formSelect) {
+    formSelect.addEventListener("change", updateBranch);
+    updateBranch();
+  }
 </script>
 {% endblock %}

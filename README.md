@@ -15,17 +15,18 @@ What You Will Do
 This study has two sessions:
 
 Session 1 (today, Day 0)
-1) Complete two password tasks:
-   - Condition A: traditional password (text/numbers)
-   - Condition B: emoji password (emoji-only or mixed is up to you)
-   Each task includes: create → confirm → login (up to 3 attempts).
-2) Enter your Participant ID (you create it yourself).
-3) Complete a short questionnaire.
+1) Create your Participant ID (you create it yourself).
+2) Complete one assigned password task:
+   - Condition A: traditional password (letters/numbers/symbols), or
+   - Condition B: emoji-inclusive password (emoji-only or mixed)
+   The condition is assigned automatically with balanced random allocation.
+   The task includes: create + confirm on the same page (must match),
+   then a 10min recall wait, then login (up to 3 attempts).
 
 Session 2 (about 48 hours later, Day 2)
 1) Enter the SAME Participant ID again.
-2) Repeat the password login tasks for recall.
-3) Complete a short questionnaire.
+2) Repeat the same condition login task for recall.
+3) Complete a short questionnaire (optional; can be skipped).
 
 Participant ID Rules (Very Important)
 -------------------------------------
