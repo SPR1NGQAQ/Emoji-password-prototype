@@ -108,6 +108,37 @@ Troubleshooting
   Delete emoji.db and restart the server to re-create tables.
   (Do not do this once real data collection has started.)
 
+Developer Configuration (Researcher / System Tester)
+----------------------------------------------------
+This section is for developers and researchers, not study participants.
+
+Timing gates are controlled by two flags in app.py:
+
+- ENABLE_10MIN_GATE
+- ENABLE_48H_GATE
+
+System testing mode (disable waiting limits)
+1) Open app.py.
+2) Set both flags to False:
+
+   ENABLE_10MIN_GATE = False
+   ENABLE_48H_GATE = False
+
+3) Restart the Flask server.
+
+Participant data collection mode (enable study timing)
+1) Open app.py.
+2) Set both flags to True:
+
+   ENABLE_10MIN_GATE = True
+   ENABLE_48H_GATE = True
+
+3) Restart the Flask server before collecting real data.
+
+Notes
+- If values are changed while the server is running, restart the server so the config takes effect.
+- Before real data collection, verify both gates are True.
+
 Files You May See
 -----------------
 - app.py              : Flask backend (routes, database, export)
